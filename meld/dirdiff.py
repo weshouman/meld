@@ -1405,10 +1405,32 @@ class DirDiff(Gtk.VBox, tree.TreeviewCommon, MeldDoc):
     def on_treeview_popup_menu(self, treeview):
         return tree.TreeviewCommon.on_treeview_popup_menu(self, treeview)
 
+    def select_left_file_to_compare(self, pane):
+        """Store the selected file or directory path on the left for comparison"""
+        self.left_file_to_compare = self._get_selected_paths(pane)[0]
+
+    def select_right_file_to_compare(self, pane):
+        """Store the selected file or directory path on the right for comparison"""
+        self.right_file_to_compare = self._get_selected_paths(pane)[0]
+
     @Gtk.Template.Callback()
     def on_treeview_button_press_event(self, treeview, event):
-        return tree.TreeviewCommon.on_treeview_button_press_event(
-            self, treeview, event)
+        if event.button == 3:  # Right click
+            menu = Gtk.Menu()
+
+            item_select_left = Gtk.MenuItem("Select left file/dir to compare")
+            item_select_left.connect("activate", self.select_left_file_to_compare, self.treeview.index(treeview))
+            menu.append(item_select_left)
+
+            item_compare = Gtk.MenuItem("Compare to 'filename'")
+            item_compare.connect("activate", self.select_right_file_to_compare, self.treeview.index(treeview))
+            menu.append(item_compare)
+
+            menu.show_all()
+            menu.popup(None, None, None, None, event.button, event.time)
+            return True
+
+        return tree.TreeviewCommon.on_treeview_button_press_event(self, treeview, event)
 
     @with_focused_pane
     def action_prev_pane(self, pane, *args):
@@ -1497,14 +1519,23 @@ class DirDiff(Gtk.VBox, tree.TreeviewCommon, MeldDoc):
         ]
         self.create_diff_signal.emit(gfiles, {})
 
+    def compare_selected_files(self):
+        """Compare the selected files or directories"""
+        left_file = self.model.get_iter(self.left_file_to_compare)
+        right_file = self.model.get_iter(self.right_file_to_compare)
+        self.run_diff_from_iter(left_file, right_file)
+
     def action_diff(self, *args):
         pane = self._get_focused_pane()
         if pane is None:
             return
 
-        selected = self._get_selected_paths(pane)
-        for row in selected:
-            self.run_diff_from_iter(self.model.get_iter(row))
+        if self.left_file_to_compare and self.right_file_to_compare:
+            self.compare_selected_files()
+        else:
+            selected = self._get_selected_paths(pane)
+            for row in selected:
+                self.run_diff_from_iter(self.model.get_iter(row))
 
     def action_mark(self, *args):
         pane = self._get_focused_pane()
