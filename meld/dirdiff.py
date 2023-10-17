@@ -468,27 +468,18 @@ class DirDiff(Gtk.VBox, tree.TreeviewCommon, MeldDoc):
 
     def __init__(self, num_panes):
         super().__init__()
-        # FIXME:
-        # This unimaginable hack exists because GObject (or GTK+?)
-        # doesn't actually correctly chain init calls, even if they're
-        # not to GObjects. As a workaround, we *should* just be able to
-        # put our class first, but because of Gtk.Template we can't do
-        # that if it's a GObject, because GObject doesn't support
-        # multiple inheritance and we need to inherit from our Widget
-        # parent to make Template work.
         MeldDoc.__init__(self)
         bind_settings(self)
-
+    
         self.view_action_group = Gio.SimpleActionGroup()
-
+    
         property_actions = (
             ('show-overview-map', self, 'show-overview-map'),
         )
         for action_name, obj, prop_name in property_actions:
             action = Gio.PropertyAction.new(action_name, obj, prop_name)
             self.view_action_group.add_action(action)
-
-        # Manually handle GAction additions
+    
         actions = (
             ('find', self.action_find),
             ('folder-collapse', self.action_folder_collapse),
@@ -512,7 +503,7 @@ class DirDiff(Gtk.VBox, tree.TreeviewCommon, MeldDoc):
             action = Gio.SimpleAction.new(name, None)
             action.connect('activate', callback)
             self.view_action_group.add_action(action)
-
+    
         actions = (
             ("folder-filter", None, GLib.Variant.new_boolean(False)),
             ("folder-status-same", self.action_filter_state_change,
@@ -531,19 +522,19 @@ class DirDiff(Gtk.VBox, tree.TreeviewCommon, MeldDoc):
             if callback:
                 action.connect("change-state", callback)
             self.view_action_group.add_action(action)
-
+    
         builder = Gtk.Builder.new_from_resource(
             '/org/gnome/meld/ui/dirdiff-menus.ui')
         context_menu = builder.get_object('dirdiff-context-menu')
         self.popup_menu = Gtk.Menu.new_from_model(context_menu)
         self.popup_menu.attach_to_widget(self)
-
+    
         builder = Gtk.Builder.new_from_resource(
             '/org/gnome/meld/ui/dirdiff-actions.ui')
         self.toolbar_actions = builder.get_object('view-toolbar')
-
+    
         self.folders = [None, None, None]
-
+    
         self.name_filters = []
         self.text_filters = []
         self.create_name_filters()
@@ -555,10 +546,7 @@ class DirDiff(Gtk.VBox, tree.TreeviewCommon, MeldDoc):
             meld_settings.connect(
                 "text-filters-changed", self.on_text_filters_changed)
         ]
-
-        # Handle overview map visibility binding. Because of how we use
-        # grid packing, we need two revealers here instead of the more
-        # obvious one.
+    
         revealers = (
             self.toolbar_sourcemap_revealer,
             self.overview_map_revealer,
@@ -571,7 +559,7 @@ class DirDiff(Gtk.VBox, tree.TreeviewCommon, MeldDoc):
                     GObject.BindingFlags.SYNC_CREATE
                 ),
             )
-
+    
         map_widgets_into_lists(
             self,
             [
@@ -580,15 +568,15 @@ class DirDiff(Gtk.VBox, tree.TreeviewCommon, MeldDoc):
                 "pane_actionbar", "folder_open_button",
             ],
         )
-
+    
         self.ensure_style()
-
+    
         self.custom_labels = []
         self.set_num_panes(num_panes)
-
+    
         self.connect("style-updated", self.model.on_style_updated)
         self.model.on_style_updated(self)
-
+    
         self.do_to_others_lock = False
         for treeview in self.treeview:
             treeview.set_search_equal_func(tree.treeview_search_cb, None)
@@ -596,12 +584,10 @@ class DirDiff(Gtk.VBox, tree.TreeviewCommon, MeldDoc):
         self.current_path, self.prev_path, self.next_path = None, None, None
         self.focus_pane = None
         self.row_expansions = set()
-
-        # One column-dict for each treeview, for changing visibility and order
+    
         self.columns_dict = [{}, {}, {}]
         for i in range(3):
             col_index = self.model.column_index
-            # Create icon and filename CellRenderer
             column = Gtk.TreeViewColumn(_("Name"))
             column.set_resizable(True)
             rentext = Gtk.CellRendererText()
@@ -622,7 +608,6 @@ class DirDiff(Gtk.VBox, tree.TreeviewCommon, MeldDoc):
             )
             self.treeview[i].append_column(column)
             self.columns_dict[i]["name"] = column
-            # Create file size CellRenderer
             column = Gtk.TreeViewColumn(_("Size"))
             column.set_resizable(True)
             rentext = CellRendererByteSize()
@@ -630,7 +615,6 @@ class DirDiff(Gtk.VBox, tree.TreeviewCommon, MeldDoc):
             column.set_attributes(rentext, bytesize=col_index(COL_SIZE, i))
             self.treeview[i].append_column(column)
             self.columns_dict[i]["size"] = column
-            # Create date-time CellRenderer
             column = Gtk.TreeViewColumn(_("Modification time"))
             column.set_resizable(True)
             rentext = CellRendererDate()
@@ -638,7 +622,6 @@ class DirDiff(Gtk.VBox, tree.TreeviewCommon, MeldDoc):
             column.set_attributes(rentext, timestamp=col_index(COL_TIME, i))
             self.treeview[i].append_column(column)
             self.columns_dict[i]["modification time"] = column
-            # Create ISO-format date-time CellRenderer
             column = Gtk.TreeViewColumn(_("Modification time (ISO)"))
             column.set_resizable(True)
             rentext = CellRendererISODate()
@@ -646,7 +629,6 @@ class DirDiff(Gtk.VBox, tree.TreeviewCommon, MeldDoc):
             column.set_attributes(rentext, timestamp=col_index(COL_TIME, i))
             self.treeview[i].append_column(column)
             self.columns_dict[i]["iso-time"] = column
-            # Create permissions CellRenderer
             column = Gtk.TreeViewColumn(_("Permissions"))
             column.set_resizable(True)
             rentext = CellRendererFileMode()
@@ -654,7 +636,7 @@ class DirDiff(Gtk.VBox, tree.TreeviewCommon, MeldDoc):
             column.set_attributes(rentext, file_mode=col_index(COL_PERMS, i))
             self.treeview[i].append_column(column)
             self.columns_dict[i]["permissions"] = column
-
+    
         for i in range(3):
             selection = self.treeview[i].get_selection()
             selection.set_mode(Gtk.SelectionMode.MULTIPLE)
@@ -664,19 +646,17 @@ class DirDiff(Gtk.VBox, tree.TreeviewCommon, MeldDoc):
             self.scrolledwindow[i].get_hadjustment().connect(
                 "value-changed", self._sync_hscroll)
         self.linediffs = [[], []]
-
+    
         self.update_treeview_columns(settings, 'folder-columns')
         settings.connect('changed::folder-columns',
                          self.update_treeview_columns)
-
+    
         self.update_comparator()
         self.connect("notify::shallow-comparison", self.update_comparator)
         self.connect("notify::time-resolution", self.update_comparator)
         self.connect("notify::ignore-blank-lines", self.update_comparator)
         self.connect("notify::apply-text-filters", self.update_comparator)
-
-        # The list copying and state_filters reset here is because the action
-        # toggled callback modifies the state while we're constructing it.
+    
         self.state_filters = []
         state_filters = []
         for s in self.state_actions:
@@ -686,14 +666,34 @@ class DirDiff(Gtk.VBox, tree.TreeviewCommon, MeldDoc):
                 self.set_action_state(
                     action_name, GLib.Variant.new_boolean(True))
         self.state_filters = state_filters
-
+    
         self._scan_in_progress = 0
-
+    
         self.marked = None
-
+    
+        # Initialize the left_file_to_compare and right_file_to_compare variables
+        self.left_file_to_compare = None
+        self.right_file_to_compare = None
+    
     def queue_draw(self):
         for treeview in self.treeview:
             treeview.queue_draw()
+    
+    # Add the select_left_file_to_compare and select_right_file_to_compare methods
+    def select_left_file_to_compare(self, file_path):
+        self.left_file_to_compare = file_path
+    
+    def select_right_file_to_compare(self, file_path):
+        self.right_file_to_compare = file_path
+    
+    # Modify the compare_selected_files method
+    def compare_selected_files(self):
+        if self.left_file_to_compare is not None and self.right_file_to_compare is not None:
+            left_tree_path = self.treeview[0].get_path(self.left_file_to_compare)
+            right_tree_path = self.treeview[1].get_path(self.right_file_to_compare)
+            left_iter = self.model.get_iter(left_tree_path)
+            right_iter = self.model.get_iter(right_tree_path)
+            # Continue with the comparison...
 
     def update_comparator(self, *args):
         comparison_args = {
@@ -1422,9 +1422,11 @@ class DirDiff(Gtk.VBox, tree.TreeviewCommon, MeldDoc):
             item_select_left.connect("activate", self.select_left_file_to_compare, self.treeview.index(treeview))
             menu.append(item_select_left)
 
-            item_compare = Gtk.MenuItem("Compare to 'filename'")
-            item_compare.connect("activate", self.select_right_file_to_compare, self.treeview.index(treeview))
-            menu.append(item_compare)
+            # Add the "Compare to 'filename'" menu item only if both left and right files to compare are selected
+            if self.left_file_to_compare is not None and self.right_file_to_compare is not None:
+                item_compare = Gtk.MenuItem("Compare to 'filename'")
+                item_compare.connect("activate", self.select_right_file_to_compare, self.treeview.index(treeview))
+                menu.append(item_compare)
 
             menu.show_all()
             menu.popup(None, None, None, None, event.button, event.time)
