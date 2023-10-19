@@ -10,6 +10,9 @@
 # WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
 
+import shutil
+import os
+
 def copy_file_or_folder(self, source_path, destination_path):
     try:
         if os.path.isdir(source_path):
