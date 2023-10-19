@@ -5,15 +5,23 @@ class FileMapping:
         self.mapping = {}
 
     def add_mapping(self, source, target):
-        self.mapping[source] = target
+        try:
+            self.mapping[source] = target
+        except Exception as e:
+            print(f"Error adding mapping: {e}")
 
     def remove_mapping(self, source):
-        if source in self.mapping:
-            del self.mapping[source]
+        try:
+            if source in self.mapping:
+                del self.mapping[source]
+        except Exception as e:
+            print(f"Error removing mapping: {e}")
 
     def reset_mappings(self):
-        self.mapping.clear()
-```
+        try:
+            self.mapping.clear()
+        except Exception as e:
+            print(f"Error resetting mappings: {e}")
 
 ```python
 # meld/dirdiff.py
