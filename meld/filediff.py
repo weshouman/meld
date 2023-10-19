@@ -1613,13 +1613,15 @@ class FileDiff(Gtk.VBox, MeldDoc):
         self.undosequence.clear()
         self.load_file_in_pane(pane, gfile, encoding)
 
+    from gi.repository import Gtk, Gdk
+    
     def load_file_in_pane(
             self,
             pane: int,
             gfile: Gio.File,
             encoding: GtkSource.Encoding = None):
         """Load a file into the given pane
-
+    
         Don't call this directly; use `set_file()` or `set_files()`,
         which handle sensitivity and signal connection. Even if you
         don't care about those things, you need it because they'll be
