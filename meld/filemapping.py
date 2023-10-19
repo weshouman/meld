@@ -25,14 +25,7 @@ class FileMapping:
 
 # meld/dirdiff.py
 
-from .filemapping import FileMapping
-
-file_mapping = FileMapping()
-
 import os
-
-# meld/dirdiff.py
-
 from .filemapping import FileMapping
 
 file_mapping = FileMapping()
