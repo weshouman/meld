@@ -29,6 +29,14 @@ from .filemapping import FileMapping
 
 file_mapping = FileMapping()
 
+import os
+
+# meld/dirdiff.py
+
+from .filemapping import FileMapping
+
+file_mapping = FileMapping()
+
 def handle_ctrl_k(file_mapping, source, target):
     if os.path.exists(source):
         file_mapping.add_mapping(source, target)
@@ -38,15 +46,4 @@ def handle_ctrl_shift_k(file_mapping, source):
         file_mapping.remove_mapping(source)
 
 def handle_ctrl_l(file_mapping):
-    file_mapping.reset_mappings()
-
-file_mapping = FileMapping()
-
-def handle_ctrl_k(source, target):
-    file_mapping.add_mapping(source, target)
-
-def handle_ctrl_shift_k(source):
-    file_mapping.remove_mapping(source)
-
-def handle_ctrl_l():
     file_mapping.reset_mappings()
