@@ -234,6 +234,12 @@ class FileDiff(Gtk.VBox, MeldDoc):
         # This unimaginable hack exists because GObject (or GTK+?)
         # doesn't actually correctly chain init calls, even if they're
         # not to GObjects. As a workaround, we *should* just be able to
+    
+    def copy_subset(self, start_line, end_line):
+        # Copy only the lines within the range from start_line to end_line
+        lines = self.textbuffer.get_lines(start_line, end_line, False)
+        clipboard = Gtk.Clipboard.get(Gdk.SELECTION_CLIPBOARD)
+        clipboard.set_text('\n'.join(lines), -1)
         # put our class first, but because of Gtk.Template we can't do
         # that if it's a GObject, because GObject doesn't support
         # multiple inheritance and we need to inherit from our Widget
@@ -326,14 +332,14 @@ class FileDiff(Gtk.VBox, MeldDoc):
             ('cut', self.action_cut),
             ('file-previous-conflict', self.action_previous_conflict),
             ('file-next-conflict', self.action_next_conflict),
-            ('file-push-left', self.action_push_change_left),
-            ('file-push-right', self.action_push_change_right),
-            ('file-pull-left', self.action_pull_change_left),
-            ('file-pull-right', self.action_pull_change_right),
-            ('file-copy-left-up', self.action_copy_change_left_up),
-            ('file-copy-right-up', self.action_copy_change_right_up),
-            ('file-copy-left-down', self.action_copy_change_left_down),
-            ('file-copy-right-down', self.action_copy_change_right_down),
+            ('file-push-left', lambda: self.action_push_change_left(self.copy_subset)),
+            ('file-push-right', lambda: self.action_push_change_right(self.copy_subset)),
+            ('file-pull-left', lambda: self.action_pull_change_left(self.copy_subset)),
+            ('file-pull-right', lambda: self.action_pull_change_right(self.copy_subset)),
+            ('file-copy-left-up', lambda: self.action_copy_change_left_up(self.copy_subset)),
+            ('file-copy-right-up', lambda: self.action_copy_change_right_up(self.copy_subset)),
+            ('file-copy-left-down', lambda: self.action_copy_change_left_down(self.copy_subset)),
+            ('file-copy-right-down', lambda: self.action_copy_change_right_down(self.copy_subset)),
             ('file-delete', self.action_delete_change),
             ('find', self.action_find),
             ('find-next', self.action_find_next),
