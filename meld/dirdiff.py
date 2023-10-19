@@ -9,6 +9,23 @@
 # This program is distributed in the hope that it will be useful, but
 # WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+
+import shutil
+import os
+
+def copy_file_or_folder(self, source_path, destination_path):
+    try:
+        if os.path.isdir(source_path):
+            shutil.copytree(source_path, destination_path)
+        else:
+            shutil.copy2(source_path, destination_path)
+    except Exception as e:
+        log.error(f"Failed to copy {source_path} to {destination_path}: {e}")
+
+def action_copy_to_other_pane(self, source_pane, destination_pane):
+    source_path = self.get_path(source_pane)
+    destination_path = self.get_path(destination_pane)
+    self.copy_file_or_folder(source_path, destination_path)
 # General Public License for more details.
 #
 # You should have received a copy of the GNU General Public License
@@ -275,9 +292,11 @@ class ComparisonOptions:
         *,
         ignore_case: bool = False,
         normalize_encoding: bool = False,
+        display_copy_arrow: bool = False,
     ):
         self.ignore_case = ignore_case
         self.normalize_encoding = normalize_encoding
+        self.display_copy_arrow = display_copy_arrow
 
 
 class CanonicalListing:
@@ -370,6 +389,13 @@ class DirDiff(Gtk.VBox, tree.TreeviewCommon, MeldDoc):
     label_changed = MeldDoc.label_changed
     move_diff = MeldDoc.move_diff
     tab_state_changed = MeldDoc.tab_state_changed
+
+    display_copy_arrow = GObject.Property(
+        type=bool,
+        nick="Display copy arrow",
+        blurb="Whether to display a copy arrow next to each differing line",
+        default=False,
+    )
 
     __gsettings_bindings__ = (
         ('folder-ignore-symlinks', 'ignore-symlinks'),
@@ -507,6 +533,7 @@ class DirDiff(Gtk.VBox, tree.TreeviewCommon, MeldDoc):
             ('previous-pane', self.action_prev_pane),
             ('refresh', self.action_refresh),
             ('copy-file-paths', self.action_copy_file_paths),
+            ('copy-to-other-pane', self.action_copy_to_other_pane),
         )
         for name, callback in actions:
             action = Gio.SimpleAction.new(name, None)
@@ -525,6 +552,7 @@ class DirDiff(Gtk.VBox, tree.TreeviewCommon, MeldDoc):
                 GLib.Variant.new_boolean(False)),
             ("folder-normalize-encoding", self.action_ignore_case_change,
                 GLib.Variant.new_boolean(False)),
+            ("display-copy-arrow", None, GLib.Variant.new_boolean(self.display_copy_arrow)),
         )
         for (name, callback, state) in actions:
             action = Gio.SimpleAction.new_stateful(name, None, state)
@@ -937,7 +965,21 @@ class DirDiff(Gtk.VBox, tree.TreeviewCommon, MeldDoc):
         prefixlen = 1 + len(
             self.model.value_path(self.model.get_iter(rootpath), 0))
         symlinks_followed = set()
-        # TODO: This is horrible.
+        if isinstance(rootpath, tuple):
+            rootpath = Gtk.TreePath(rootpath)
+        todo = [rootpath]
+        expanded = set()
+
+        if self.display_copy_arrow:
+            # Add UI element (arrow) next to each differing line
+            for row in self.model:
+                if row[COL_STATUS] != FILE_STATUS_SAME:
+                    # This is a differing line, so add an arrow UI element
+                    arrow = Gtk.Arrow.new(Gtk.ArrowType.RIGHT, Gtk.ShadowType.NONE)
+                    self.treeview.append_column(Gtk.TreeViewColumn("", Gtk.CellRendererPixbuf(), pixbuf=arrow))
+                    row[COL_ARROW] = arrow.get_pixbuf()
+
+        # Rest of the code...
         if isinstance(rootpath, tuple):
             rootpath = Gtk.TreePath(rootpath)
         todo = [rootpath]
@@ -1217,37 +1259,7 @@ class DirDiff(Gtk.VBox, tree.TreeviewCommon, MeldDoc):
             src = model.value_path(it, src_pane)
             dst = model.value_path(it, dst_pane)
             try:
-                if os.path.isfile(src):
-                    dstdir = os.path.dirname(dst)
-                    if not os.path.exists(dstdir):
-                        os.makedirs(dstdir)
-                    misc.copy2(src, dstdir)
-                    self.file_created(path, dst_pane)
-                elif os.path.isdir(src):
-                    if os.path.exists(dst):
-                        parent_name = os.path.dirname(dst)
-                        folder_name = os.path.basename(dst)
-                        dialog_buttons = [
-                            (_("_Cancel"), Gtk.ResponseType.CANCEL, None),
-                            (
-                                _("_Replace"), Gtk.ResponseType.OK,
-                                Gtk.STYLE_CLASS_DESTRUCTIVE_ACTION,
-                            ),
-                        ]
-                        replace = misc.modal_dialog(
-                            primary=_("Replace folder “%s”?") % folder_name,
-                            secondary=_(
-                                "Another folder with the same name already "
-                                "exists in “%s”.\n"
-                                "If you replace the existing folder, all "
-                                "files in it will be lost.") % parent_name,
-                            buttons=dialog_buttons,
-                            messagetype=Gtk.MessageType.WARNING,
-                        )
-                        if replace != Gtk.ResponseType.OK:
-                            continue
-                    misc.copytree(src, dst)
-                    self.recursively_update(path)
+                self.copy_file_or_folder(src, dst)
             except (OSError, IOError, shutil.Error) as err:
                 misc.error_dialog(
                     _("Error copying file"),
